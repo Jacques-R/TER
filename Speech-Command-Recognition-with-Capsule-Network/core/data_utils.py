@@ -7,17 +7,6 @@ from keras.utils import to_categorical
 import scipy
 import matplotlib.pyplot as plt
 
-# zero -> 29
-# one -> 17
-# two -> 25
-# three -> 23
-# four -> 7
-# five -> 6
-# six -> 21
-# seven -> 19
-# eight -> 5
-# nine -> 13
-
 '''
 if mode is fbank we assume that featLength is 40.
 and if mode is mfcc we assume that featLength is 13.
@@ -101,20 +90,13 @@ def select_feature(FeatureArray, feature_len):
     else:
         raise ValueError('feature_len error')
 
-number_labels = []
-def recompute_label(y, open_labels_path):
-    if number_labels == []:
-        number_labels = []
-        with open(open_labels_path) as file:
-            for line in file.readlines():
-                number_labels.append(int(line))
-
-    if int(y) not in number_labels:
-        return len(number_labels)
+def recompute_label(y, open_labels):
+    if int(y) not in open_labels:
+        return len(open_labels)
     else:
-        return number_labels.index(y)
+        return open_labels.index(y)
 
-def load_random_noisy_data(args, SNR=None, mixedData=True, is_training=None):
+def load_random_noisy_data(args, SNR=None, mixedData=True, is_training=None, open_labels=[]):
 
     if not is_training:
         featPath = os.path.join(args.data_path, args.is_training, args.mode)
@@ -175,7 +157,7 @@ def load_random_noisy_data(args, SNR=None, mixedData=True, is_training=None):
         x[index, :,:] = select_feature(FeatArray,featLength)
         y[index] = np.load(os.path.join(labelPath, filename))
         if args.open_set:
-            y[index] = recompute_label(y[index], args.open_labels_path)
+            y[index] = recompute_label(y[index], open_labels)
     # [sample,99,120]
     x_new = np.zeros((x.shape[0],99,featLength,3))
     x_new[:,:,:,0] = x[:,:,:featLength]
@@ -185,7 +167,7 @@ def load_random_noisy_data(args, SNR=None, mixedData=True, is_training=None):
     #y = np.expand_dims(y,axis=1)
     return x_new,y
 
-def load_specific_noisy_data(args, noise_name, is_training=None):
+def load_specific_noisy_data(args, noise_name, is_training=None, open_labels=[]):
     if not is_training:
         mfccPath = os.path.join(args.data_path, args.is_training, args.mode, noise_name)
         labelPath = os.path.join(args.data_path, args.is_training, 'label')
@@ -216,7 +198,7 @@ def load_specific_noisy_data(args, noise_name, is_training=None):
         x[index, :,:] = select_feature(FeatArray,featLength)
         y[index] = np.load(os.path.join(labelPath, filename))
         if args.open_set:
-            y[index] = recompute_label(y[index], args.open_labels_path)
+            y[index] = recompute_label(y[index], open_labels)
     print('end')
     # [sample,99,120]
     x_new = np.zeros((x.shape[0],99,featLength,3))
@@ -241,25 +223,25 @@ def Dimension(data,dimension):
         raise ValueError('Dimension value wrong')
     return data
 
-def DATA(args):
+def DATA(args, open_labels):
     '''
     The first trX will have size [Number,99(time),40(feat),3]
     make it to channel 1 or 3
     '''
     if args.is_training == 'TRAIN':
         if args.train_with == 'clean':
-            trX, trY = load_specific_noisy_data(args, noise_name='clean')
+            trX, trY = load_specific_noisy_data(args, noise_name='clean', open_labels=open_labels)
         elif args.train_with == 'mixed':
-            trX, trY = load_random_noisy_data(args, SNR=args.SNR, mixedData=True)
+            trX, trY = load_random_noisy_data(args, SNR=args.SNR, mixedData=True, open_labels=open_labels)
         else:
-            trX, trY = load_specific_noisy_data(args, noise_name=args.train_with)
+            trX, trY = load_specific_noisy_data(args, noise_name=args.train_with, open_labels=open_labels)
         #
         if args.test_with == 'clean':
-            vaX, vaY = load_specific_noisy_data(args, noise_name='clean', is_training='VALID')
+            vaX, vaY = load_specific_noisy_data(args, noise_name='clean', is_training='VALID', open_labels=open_labels)
         elif args.test_with == 'noisy' or args.test_with == 'mixed':
-            vaX, vaY = load_random_noisy_data(args, is_training='VALID', SNR=args.SNR,mixedData=True)
+            vaX, vaY = load_random_noisy_data(args, is_training='VALID', SNR=args.SNR,mixedData=True, open_labels=open_labels)
         else:
-            vaX, vaY = load_specific_noisy_data(args, is_training='VALID', noise_name=test_with)
+            vaX, vaY = load_specific_noisy_data(args, is_training='VALID', noise_name=args.test_with, open_labels=open_labels)
         #
         trX = Dimension(trX, args.dimension)
         vaX = Dimension(vaX, args.dimension)

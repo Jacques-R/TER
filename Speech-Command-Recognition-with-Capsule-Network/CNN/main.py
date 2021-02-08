@@ -53,12 +53,6 @@ def test(model, data, args, matrix_name=None):
     print('-'*20 + 'Begin: test with ' + '-'*20)
     y_pred = model.predict(teX,batch_size=args.batch_size)
 
-    # Weight_similarity
-    if args.weight_similarity:
-        print(y_pred.shape)
-        Array1,Array2, Sim = du.compare_weight_similarity(teY,y_pred,label1=0,label2=24,label3=25,plot=args.wsplot)
-        cprint(Sim,'blue')
-
     # Test with all labels
     acc = float(np.sum(np.argmax(y_pred, 1) == np.argmax(teY, 1)))/float(teY.shape[0])
     print('Test with all labels acc:', acc )
@@ -67,30 +61,12 @@ def test(model, data, args, matrix_name=None):
     assert A.shape[0] == B.shape[0]
     teY = np.argmax(teY, axis=1)
     y_pred = np.argmax(y_pred, axis=1)
-    confusion_matrix = a.ConfusionMatrix(y_pred=y_pred, teY=teY)
+
+    
+    confusion_matrix = a.ConfusionMatrix(y_pred=y_pred, teY=teY, labels=labels_names)
     a.Matrix2Png(filename=matrix_name+'.png')
     a.Matrix2Csv(Array=confusion_matrix,filename=matrix_name+'.csv')
-    #du.pick_mis_recognized(B,A,label2=24,label3=25)
-    '''
-    # Test with 21 labels
-    sub_label = [0,1,2,3,9,10,12,20,24,27]
-    for i in range(A.shape[0]):
-        if A[i] in sub_label: A[i] = 0
-        if B[i] in sub_label: B[i] = 0
-    label21_acc =  float(np.sum(A == B))/float(teY.shape[0])
-    end_time = time.time()
-    print('Test with 21 labels acc:', label21_acc)
-    
-    # Test with 10 labels
-    sub_label = [0,1,2,3,5,6,7,9,10,12,13,17,19,20,21,23,24,25,27,29]
-    for i in range(A.shape[0]):
-        if A[i] in sub_label: A[i] = 0
-        if B[i] in sub_label: B[i] = 0
-    label10_acc =  float(np.sum(A == B))/float(teY.shape[0])
-    print('Test with 10 labels acc:' + str(label10_acc))
-    print('Time: ' + str(end_time-start_time))
-    print('-'*20 + 'End: test' + '-'*20)
-    '''
+
     return acc
     
 
@@ -105,9 +81,27 @@ if __name__ == "__main__":
 
     if args.is_training == 'TEST' and args.SNR == None:
         raise ValueError('To run the TEST, you should set SNR')
+    
+    all_label_names = []
+    with open(os.path.join(args.labels_name_path), 'r') as _file:
+        all_label_names = _file.readlines()
+
+    label_names = []
+    open_labels = [] #remains empty and unused when using closed dataset
+    if args.open_set:
+        try:
+            with open(args.open_labels_path) as file:
+                for line in file.readlines():
+                    open_labels.append(int(line))
+                    label_names.append(all_label_names[int(line)])
+        except:
+            raise ValueError("To use the open set option you need to specify the path to the file that specify which label to keep.")
+    else:
+        label_names = all_label_names
+
 
     # Data Load
-    data = du.DATA(args)
+    data = du.DATA(args, open_labels)
     X,Y = data[0], data[1]
 
     # Define Model
@@ -145,14 +139,10 @@ if __name__ == "__main__":
     # Save path and load model
     if not os.path.exists(save_path):
         os.mkdir(save_path)
-    if args.keep and not args.weight_similarity:  # init the model weights with provided one
+    if args.keep:  # init the model weights with provided one
         cprint('load weight from:' + save_path + '/weights-%03d.h5py'%args.keep, 'yellow')
         multi_model.load_weights(save_path + '/weights-%03d.h5py'% args.keep)
         #model.load(save_path)
-    elif args.keep and args.weight_similarity:
-        cprint('weight_similarity','yellow')
-        cprint('load weight from:' + save_path + '/weights-%03d.h5py'%args.keep, 'yellow')
-        multi_model.load_weights(save_path + '/weights-%03d.h5py'% args.keep,by_name=True)
     else:
         cprint('save weight to: ' + save_path, 'yellow')
 
@@ -184,10 +174,10 @@ if __name__ == "__main__":
                 print('*'*30 + 'Noisy '+ str(i+2) +' exp' + '*'*30)    
                 if args.test_by=='noise':
                 	cprint('Test by specific noise type: ' + str(noise_list[i]),'red')
-                	teX, teY = du.load_specific_noisy_data(args, noise_list[i])
+                	teX, teY = du.load_specific_noisy_data(args, noise_list[i], open_labels=open_labels)
                 elif args.test_by=='echo':
                 	cprint('Test by echo noise.','red')
-                	teX, teY = du.load_specific_noisy_data(args.data_path, 'echo')
+                	teX, teY = du.load_specific_noisy_data(args.data_path, 'echo', open_labels=open_labels)
                 else:
 
                     cprint('Test by SNR value.','red')
@@ -195,7 +185,7 @@ if __name__ == "__main__":
                         
                         try:
                             cprint('Test with SNR'+str(snr),'red')
-                            teX, teY = du.load_specific_noisy_data(args, 'doing_the_dishes_SNR'+str(snr))
+                            teX, teY = du.load_specific_noisy_data(args, 'doing_the_dishes_SNR'+str(snr), open_labels=open_labels)
                             #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                             teX = du.Dimension(teX,args.dimension)
                             acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_noisy'+str(snr))
@@ -203,7 +193,7 @@ if __name__ == "__main__":
                             fd_test_result.write('noisy'+str(snr)+','+str(acc)+'\n')
 
                             cprint('Test with Clean + SNR'+str(snr),'red')
-                            teX, teY = du.load_random_noisy_data(args.data_path,'TEST',args.mode, args.feature_len, SNR=snr, open_set=args.open_set)
+                            teX, teY = du.load_random_noisy_data(args.data_path,'TEST',args.mode, args.feature_len, SNR=snr, open_set=args.open_set, open_labels=open_labels)
                             #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                             teX = du.Dimension(teX,args.dimension)
                             acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_mixed'+str(snr))

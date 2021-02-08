@@ -30,7 +30,6 @@ def args():
     parser.add_argument('--test_by', default=None,choices=['noise','echo'], type=str)
     parser.add_argument('--open_set', default=None, type=bool)
     parser.add_argument('-fte','--final_test_with', default=None,choices=['clean','noisy'], type=str)
-    parser.add_argument('-ws','--weight_similarity', default=None, type=bool)
     # Added
     parser.add_argument('--keep', default=None, type=int)
     parser.add_argument('-dim','--dimension', default=3, choices=[0,1,2,3],type=int)
