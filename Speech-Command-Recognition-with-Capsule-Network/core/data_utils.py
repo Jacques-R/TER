@@ -101,21 +101,27 @@ def select_feature(FeatureArray, feature_len):
     else:
         raise ValueError('feature_len error')
 
-def recompute_label(y):
-    number_labels = [29, 17, 25, 23, 7, 6, 21, 19, 5, 13]
+number_labels = []
+def recompute_label(y, open_labels_path):
+    if number_labels == []:
+        number_labels = []
+        with open(open_labels_path) as file:
+            for line in file.readlines():
+                number_labels.append(int(line))
+
     if int(y) not in number_labels:
-        return 10
+        return len(number_labels)
     else:
         return number_labels.index(y)
 
-def load_random_noisy_data(data_path, is_training, mode, feature_len, SNR=None, mixedData=True, open_set=False):
+def load_random_noisy_data(args, SNR=None, mixedData=True, is_training=None):
 
-    if SNR is not None:
-        featPath = os.path.join(data_path,is_training,mode) #/TRAIN/fbank
-        labelPath = os.path.join(data_path,is_training,'label')#/TRAIN/label
+    if not is_training:
+        featPath = os.path.join(args.data_path, args.is_training, args.mode)
+        labelPath = os.path.join(args.data_path, args.is_training,'label')
     else:
-        featPath = os.path.join(data_path,is_training,mode) #/TRAIN/fbank
-        labelPath = os.path.join(data_path,is_training,'label')#/TRAIN/label
+        featPath = os.path.join(args.data_path, is_training, args.mode)
+        labelPath = os.path.join(args.data_path, is_training,'label')
     
     def Generate_noise_list(featPath, SNR):
         '''
@@ -123,34 +129,34 @@ def load_random_noisy_data(data_path, is_training, mode, feature_len, SNR=None, 
         '''
         noise_list = os.listdir(featPath)
 
-        if is_training=='TRAIN':
+        if args.is_training=='TRAIN':
             return noise_list
 
         noise_list = os.listdir(featPath)
-        print noise_list
+        print(noise_list)
         out = []
         if SNR is not None:
             for ii in noise_list:
                 #print ii.split('_')[-1], ii.split('_')[-1]=='SNR'+str(SNR)
                 if ii.split('_')[-1] == 'SNR'+str(SNR):
-                    print ii
+                    print(ii)
                     out.append(ii)
 
             if mixedData:
                 out.append('clean')
 
-            print out
+            print(out)
             return out
         else:                
             noise_list.remove('clean')
-            print noise_list
+            print(noise_list)
             return noise_list
 
     noise_list = Generate_noise_list(featPath,SNR)
-    if mode == 'fbank':
-        featLength = feature_len#40
-    elif mode == 'mfcc':
-        featLength = feature_len#13
+    if args.mode == 'fbank':
+        featLength = args.feature_len#40
+    elif args.mode == 'mfcc':
+        featLength = args.feature_len#13
     else:
         raise ValueError('wrong mode name')
 
@@ -166,10 +172,10 @@ def load_random_noisy_data(data_path, is_training, mode, feature_len, SNR=None, 
             FeatArray = np.pad(FeatArray, ((0,padSec),(0,0)), 'constant', constant_values=0)
         elif FeatArray.shape[0] >99:
             raise ValueError('Maxtime step wrong!')
-        x[index, :,:] = select_feature(FeatArray,feature_len)
+        x[index, :,:] = select_feature(FeatArray,featLength)
         y[index] = np.load(os.path.join(labelPath, filename))
-        if open_set:
-            y[index] = recompute_label(y[index])
+        if args.open_set:
+            y[index] = recompute_label(y[index], args.open_labels_path)
     # [sample,99,120]
     x_new = np.zeros((x.shape[0],99,featLength,3))
     x_new[:,:,:,0] = x[:,:,:featLength]
@@ -179,14 +185,18 @@ def load_random_noisy_data(data_path, is_training, mode, feature_len, SNR=None, 
     #y = np.expand_dims(y,axis=1)
     return x_new,y
 
-def load_specific_noisy_data(saved_path, is_training, mode, feature_len, noise_name, open_set=False):
-    mfccPath = os.path.join(saved_path,is_training,mode,noise_name)
-    labelPath = os.path.join(saved_path,is_training,'label')
+def load_specific_noisy_data(args, noise_name, is_training=None):
+    if not is_training:
+        mfccPath = os.path.join(args.data_path, args.is_training, args.mode, noise_name)
+        labelPath = os.path.join(args.data_path, args.is_training, 'label')
+    else:
+        mfccPath = os.path.join(args.data_path, is_training, args.mode, noise_name)
+        labelPath = os.path.join(args.data_path, is_training, 'label')
 
-    if mode == 'fbank':
-        featLength = feature_len#40
-    elif mode == 'mfcc':
-        featLength = feature_len#13
+    if args.mode == 'fbank':
+        featLength = args.feature_len#40
+    elif args.mode == 'mfcc':
+        featLength = args.feature_len#13
     else:
         raise ValueError('wrong mode name')
 
@@ -203,10 +213,10 @@ def load_specific_noisy_data(saved_path, is_training, mode, feature_len, noise_n
         elif FeatArray.shape[0] >99:
             print(FeatArray.shape[0])
             raise ValueError('Maxtime step wrong!')
-        x[index, :,:] = select_feature(FeatArray,feature_len)
+        x[index, :,:] = select_feature(FeatArray,featLength)
         y[index] = np.load(os.path.join(labelPath, filename))
-        if open_set:
-            y[index] = recompute_label(y[index])
+        if args.open_set:
+            y[index] = recompute_label(y[index], args.open_labels_path)
     print('end')
     # [sample,99,120]
     x_new = np.zeros((x.shape[0],99,featLength,3))
@@ -231,34 +241,34 @@ def Dimension(data,dimension):
         raise ValueError('Dimension value wrong')
     return data
 
-def DATA(is_training, train_with, test_with, data_path, mode, feature_len, dimension, SNR, open_set=False):
+def DATA(args):
     '''
     The first trX will have size [Number,99(time),40(feat),3]
     make it to channel 1 or 3
     '''
-    if is_training == 'TRAIN':
-        if train_with == 'clean':
-            trX, trY = load_specific_noisy_data(data_path,is_training='TRAIN',mode=mode,feature_len=feature_len,noise_name='clean', open_set=open_set)
-        elif train_with == 'mixed':
-            trX, trY = load_random_noisy_data(data_path,'TRAIN',mode=mode,feature_len=feature_len,SNR=SNR, mixedData=True, open_set=open_set)
+    if args.is_training == 'TRAIN':
+        if args.train_with == 'clean':
+            trX, trY = load_specific_noisy_data(args, noise_name='clean')
+        elif args.train_with == 'mixed':
+            trX, trY = load_random_noisy_data(args, SNR=args.SNR, mixedData=True)
         else:
-            trX, trY = load_specific_noisy_data(data_path,is_training='TRAIN',mode=mode,feature_len=feature_len,noise_name=train_with, open_set=open_set)
+            trX, trY = load_specific_noisy_data(args, noise_name=args.train_with)
         #
-        if test_with == 'clean':
-            vaX, vaY = load_specific_noisy_data(data_path,is_training='VALID',mode=mode,feature_len=feature_len,noise_name='clean', open_set=open_set)
-        elif test_with == 'noisy' or test_with == 'mixed':
-            vaX, vaY = load_random_noisy_data(data_path,'VALID',mode=mode,feature_len=feature_len,SNR=SNR,mixedData=True, open_set=open_set)
+        if args.test_with == 'clean':
+            vaX, vaY = load_specific_noisy_data(args, noise_name='clean', is_training='VALID')
+        elif args.test_with == 'noisy' or args.test_with == 'mixed':
+            vaX, vaY = load_random_noisy_data(args, is_training='VALID', SNR=args.SNR,mixedData=True)
         else:
-            vaX, vaY = load_specific_noisy_data(data_path,is_training='VALID',mode=mode,feature_len=feature_len,noise_name=test_with, open_set=open_set)
+            vaX, vaY = load_specific_noisy_data(args, is_training='VALID', noise_name=test_with)
         #
-        trX = Dimension(trX,dimension)
-        vaX = Dimension(vaX,dimension)
+        trX = Dimension(trX, args.dimension)
+        vaX = Dimension(vaX, args.dimension)
         print(str(trX.shape),str(trY.shape),str(vaX.shape),str(vaY.shape))
         return (trX, trY, vaX, vaY)
-    elif is_training =='TEST':
-        teX, teY = load_specific_noisy_data(data_path,is_training='TEST',mode=mode,feature_len=feature_len,noise_name='clean', open_set=open_set) 
+    elif args.is_training =='TEST':
+        teX, teY = load_specific_noisy_data(args, is_training='TEST', noise_name='clean') 
         # dimension start
-        teX = Dimension(teX,dimension)
+        teX = Dimension(teX, args.dimension)
         print(str(teX.shape),str(teY.shape))
         return (teX, teY) #shape [sample, 120(f), 99?(t)], [sample,]
 

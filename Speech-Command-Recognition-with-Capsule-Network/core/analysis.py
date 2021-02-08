@@ -8,7 +8,7 @@ from termcolor import cprint
 
 label_30 = ['bed', 'bird', 'cat', 'dog', 'down', 'eight', 'five', 'four', 'go', 'happy', 'house', 'left', 'marvin', 'nine', 'no', 
         'off', 'on', 'one', 'right', 'seven', 'sheila', 'six', 'stop', 'three', 'tree', 'two', 'up', 'wow', 'yes', 'zero']
-#sub_label = [0,1,2,3,9,10,12,20,24,27]
+
 label_20 = ['unrecognized', 'X', 'X', 'X','down', 'eight', 'five', 'four', 'go', 'X', 'X', 'left', 'nine', 'X', 'no', 
         'off', 'on', 'one', 'right', 'seven', 'X', 'six', 'stop', 'three', 'X', 'two', 'up', 'X', 'yes', 'zero']
 
@@ -65,11 +65,13 @@ class Analysis(object):
         True |  Value
         '''
         matrix = confusion_matrix(teY, y_pred)
+        matrix = matrix.astype('float') / matrix.sum(axis=1)[:, np.newaxis]
+        matrix = np.around(matrix, 2)
         if y_pred.max() == 10:
             ConfusionMatrixDisplay(matrix, display_labels=label_11).plot()
         else:
             ConfusionMatrixDisplay(matrix, display_labels=label_30).plot()
-        return confusion_matrix(teY, y_pred)
+        return matrix
 
     def ConfusionMatrix_Generate(self,y_pred30,teY30,y_pred20,teY20):
         ConfusionMatrix30 = self.ConfusionMatrix(y_pred=y_pred30, teY=teY30)

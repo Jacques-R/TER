@@ -59,9 +59,9 @@ def test(model, data, args, matrix_name=None):
         Array1,Array2, Sim = du.compare_weight_similarity(teY,y_pred,label1=0,label2=24,label3=25,plot=args.wsplot)
         cprint(Sim,'blue')
 
-    # Test with 30 labels
-    label30_acc = float(np.sum(np.argmax(y_pred, 1) == np.argmax(teY, 1)))/float(teY.shape[0])
-    print('Test with 30 labels acc:', label30_acc )
+    # Test with all labels
+    acc = float(np.sum(np.argmax(y_pred, 1) == np.argmax(teY, 1)))/float(teY.shape[0])
+    print('Test with all labels acc:', acc )
     A = np.argmax(y_pred, 1)
     B = np.argmax(teY, 1)
     assert A.shape[0] == B.shape[0]
@@ -71,7 +71,7 @@ def test(model, data, args, matrix_name=None):
     a.Matrix2Png(filename=matrix_name+'.png')
     a.Matrix2Csv(Array=confusion_matrix,filename=matrix_name+'.csv')
     #du.pick_mis_recognized(B,A,label2=24,label3=25)
-    
+    '''
     # Test with 21 labels
     sub_label = [0,1,2,3,9,10,12,20,24,27]
     for i in range(A.shape[0]):
@@ -90,7 +90,8 @@ def test(model, data, args, matrix_name=None):
     print('Test with 10 labels acc:' + str(label10_acc))
     print('Time: ' + str(end_time-start_time))
     print('-'*20 + 'End: test' + '-'*20)
-    return label30_acc, label21_acc
+    '''
+    return acc
     
 
 if __name__ == "__main__":
@@ -106,8 +107,7 @@ if __name__ == "__main__":
         raise ValueError('To run the TEST, you should set SNR')
 
     # Data Load
-    data = du.DATA(args.is_training, args.train_with, args.test_with,
-                        args.data_path, mode=args.mode, feature_len=args.feature_len,dimension=args.dimension, SNR=args.SNR, open_set=args.open_set) #[sample,99,40,3]
+    data = du.DATA(args)
     X,Y = data[0], data[1]
 
     # Define Model
@@ -138,7 +138,7 @@ if __name__ == "__main__":
                 CNNChannel=args.CNNChannel,
                 DenseChannel=args.DenseChannel,
                 )
-    if args.weight_similarity: model = weight_similarity(input_shape=X.shape[1:], n_class=len(np.unique(np.argmax(Y, 1))), model_size_info=args.model_size_info)
+
     model.summary()
     multi_model = model
 
@@ -175,49 +175,40 @@ if __name__ == "__main__":
             # clean test
             print('*'*30 + 'clean exp' + '*'*30)
             multi_model.load_weights(save_path + '/trained_model.h5py')
-            label30_acc, label21_acc = test(multi_model, data=data,args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_clean')
+            acc = test(multi_model, data=data,args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_clean')
             # for fair time comparison
             #label30_acc, label21_acc = test(multi_model, data=data,args=args)
-            fd_test_result.write('clean,'+str(label30_acc)+'\n')
+            fd_test_result.write('clean,'+str(acc)+'\n')
             fd_test_result.flush()
             for i in range(6):
                 print('*'*30 + 'Noisy '+ str(i+2) +' exp' + '*'*30)    
                 if args.test_by=='noise':
                 	cprint('Test by specific noise type: ' + str(noise_list[i]),'red')
-                	teX, teY = du.load_specific_noisy_data(args.data_path, 'TEST', args.mode, args.feature_len, noise_list[i], open_set=args.open_set)
+                	teX, teY = du.load_specific_noisy_data(args, noise_list[i])
                 elif args.test_by=='echo':
                 	cprint('Test by echo noise.','red')
-                	teX, teY = du.load_specific_noisy_data(args.data_path, 'TEST',  args.mode,args.feature_len, 'echo', open_set=args.open_set)
+                	teX, teY = du.load_specific_noisy_data(args.data_path, 'echo')
                 else:
-                    '''
-                    cprint('Test by random noise SNR values.','red')
-                    teX, teY = du.load_random_noisy_data(args.data_path,'TEST',args.mode, args.feature_len, SNR=args.SNR, open_set=args.open_set)
-                    #teX = np.expand_dims(teX[:,:,:,1],axis=3)
-                    teX = du.Dimension(teX,args.dimension)
-                    label30_acc, label21_acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_mixed'+str(args.SNR))
-                    # csv write
-                    fd_test_result.write('mixed'+','+str(label30_acc)+'\n')
-                    '''
 
                     cprint('Test by SNR value.','red')
                     for snr in range(-10, 20+1, 5):
                         
                         try:
                             cprint('Test with SNR'+str(snr),'red')
-                            teX, teY = du.load_specific_noisy_data(args.data_path,'TEST',args.mode, args.feature_len,'doing_the_dishes_SNR'+str(snr), open_set=args.open_set)
+                            teX, teY = du.load_specific_noisy_data(args, 'doing_the_dishes_SNR'+str(snr))
                             #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                             teX = du.Dimension(teX,args.dimension)
-                            label30_acc, label21_acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_noisy'+str(snr))
+                            acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_noisy'+str(snr))
                             # csv write
-                            fd_test_result.write('noisy'+str(snr)+','+str(label30_acc)+'\n')
+                            fd_test_result.write('noisy'+str(snr)+','+str(acc)+'\n')
 
                             cprint('Test with Clean + SNR'+str(snr),'red')
                             teX, teY = du.load_random_noisy_data(args.data_path,'TEST',args.mode, args.feature_len, SNR=snr, open_set=args.open_set)
                             #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                             teX = du.Dimension(teX,args.dimension)
-                            label30_acc, label21_acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_mixed'+str(snr))
+                            acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_mixed'+str(snr))
                             # csv write
-                            fd_test_result.write('mixed'+str(snr)+','+str(label30_acc)+'\n')
+                            fd_test_result.write('mixed'+str(snr)+','+str(acc)+'\n')
                         except:
                             continue
 
@@ -226,52 +217,12 @@ if __name__ == "__main__":
 
                 #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                 teX = du.Dimension(teX,args.dimension)#teX = np.expand_dims(teX[:,:,:,1],axis=3)
-                label30_acc, label21_acc = test(multi_model, data=(teX, teY),args=args)
+                acc = test(multi_model, data=(teX, teY),args=args)
                 # csv write
-                fd_test_result.write('noisy'+str(i)+','+str(label30_acc)+','+str(label21_acc)+'\n')
+                fd_test_result.write('noisy'+str(i)+','+str(acc)+'\n')
                 fd_test_result.flush()
             fd_test_result.close()
     else:
         raise ValueError('Wrong "is_training" value')#'could not find %c in %s' % (ch,str)) 
 # Code end
 # For not decreasing issue: https://github.com/XifengGuo/CapsNet-Keras/issues/48
-
-#######################################
-############## Trash Can ##############
-#######################################
-
-def ConfusionMatrixGenerate():
-    '''
-    Confusion Matrix Generate
-    '''
-    Anal = Analysis(args)
-    #Anal.ConfusionMatrix_Generate(y_pred30=np.argmax(y_pred, 1), teY30=np.argmax(teY, 1), y_pred20=A,teY20=B)
-    #Anal.RawPredictMatrix_Generate(np.reshape(np.argmax(y_pred, 1), (-1,1)), teY)
-    Anal.MatrixSave(np.reshape(np.argmax(y_pred, 1), (-1,1)), teY)
-    Anal.StopCode()
-    return None
-
-'''
-def text_to_label(text):
-return {'bed':0, 'bird':1, 'cat':2, 'dog':3, 'down':4, 
-    'eight':5, 'five':6, 'four':7, 'go':8, 'happy':9, 
-    'house':10, 'left':11, 'marvin':12, 'nine':13, 'no':14, 
-    'off':15, 'on':16, 'one':17, 'right':18, 'seven':19, 
-    'sheila':20, 'six':21, 'stop':22, 'three':23, 'tree':24,
-    'two':25, 'up':26, 'wow':27, 'yes':28, 'zero':29}.get(text, 30)
-'''
-'''
-x_test, y_test = data
-y_pred, x_recon = model.predict(x_test, batch_size=100)
-print('-'*30 + 'Begin: test' + '-'*30)
-print('Test acc:', np.sum(np.argmax(y_pred, 1) == np.argmax(y_test, 1))/y_test.shape[0])
-
-img = combine_images(np.concatenate([x_test[:50],x_recon[:50]]))
-image = img * 255
-Image.fromarray(image.astype(np.uint8)).save(args.save_dir + "/real_and_recon.png")
-print()
-print('Reconstructed images are saved to %s/real_and_recon.png' % args.save_dir)
-print('-' * 30 + 'End: test' + '-' * 30)
-plt.imshow(plt.imread(args.save_dir + "/real_and_recon.png"))
-plt.show()
-'''
