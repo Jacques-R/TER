@@ -44,9 +44,9 @@ def train(multi_model, data, save_path, args):
               shuffle = True,
               callbacks=[log, checkpoint, earlystop])
 
-def test(model, data, args, matrix_name=None):
+def test(model, data, args, label_names, matrix_name=None):
     if matrix_name is None:
-        matrix_name = '/ConfusionMatrix_'+args.ex_name+'_'+args.test_with+str(args.SNR)
+        matrix_name = '/ConfusionMatrix_'+args.ex_name+'_'+args.test_with
     a = analysis.Analysis(args)
     start_time = time.time()
     teX,teY = data
@@ -63,7 +63,7 @@ def test(model, data, args, matrix_name=None):
     y_pred = np.argmax(y_pred, axis=1)
 
     
-    confusion_matrix = a.ConfusionMatrix(y_pred=y_pred, teY=teY, labels=labels_names)
+    confusion_matrix = a.ConfusionMatrix(y_pred=y_pred, teY=teY, labels=label_names)
     a.Matrix2Png(filename=matrix_name+'.png')
     a.Matrix2Csv(Array=confusion_matrix,filename=matrix_name+'.csv')
 
@@ -78,12 +78,9 @@ if __name__ == "__main__":
     parameter_print(args,ex_name=ex_name,ModelType='CNN')
     save_path = os.path.join(args.project_path,'save',args.model,ex_name)
     cprint('save_path: '+str(save_path),'yellow')
-
-    if args.is_training == 'TEST' and args.SNR == None:
-        raise ValueError('To run the TEST, you should set SNR')
     
     all_label_names = []
-    with open(os.path.join(args.labels_name_path), 'r') as _file:
+    with open(os.path.join(args.label_names_path), 'r') as _file:
         all_label_names = _file.readlines()
 
     label_names = []
@@ -165,7 +162,7 @@ if __name__ == "__main__":
             # clean test
             print('*'*30 + 'clean exp' + '*'*30)
             multi_model.load_weights(save_path + '/trained_model.h5py')
-            acc = test(multi_model, data=data,args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_clean')
+            acc = test(multi_model, data=data,args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_clean', label_names=label_names)
             # for fair time comparison
             #label30_acc, label21_acc = test(multi_model, data=data,args=args)
             fd_test_result.write('clean,'+str(acc)+'\n')
@@ -188,7 +185,7 @@ if __name__ == "__main__":
                             teX, teY = du.load_specific_noisy_data(args, 'doing_the_dishes_SNR'+str(snr), open_labels=open_labels)
                             #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                             teX = du.Dimension(teX,args.dimension)
-                            acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_noisy'+str(snr))
+                            acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_noisy'+str(snr), label_names=label_names)
                             # csv write
                             fd_test_result.write('noisy'+str(snr)+','+str(acc)+'\n')
 
@@ -196,7 +193,7 @@ if __name__ == "__main__":
                             teX, teY = du.load_random_noisy_data(args.data_path,'TEST',args.mode, args.feature_len, SNR=snr, open_set=args.open_set, open_labels=open_labels)
                             #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                             teX = du.Dimension(teX,args.dimension)
-                            acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_mixed'+str(snr))
+                            acc = test(multi_model, data=(teX, teY),args=args, matrix_name='/ConfusionMatrix_'+args.ex_name+'_mixed'+str(snr), label_names=label_names)
                             # csv write
                             fd_test_result.write('mixed'+str(snr)+','+str(acc)+'\n')
                         except:
@@ -207,7 +204,7 @@ if __name__ == "__main__":
 
                 #teX = np.expand_dims(teX[:,:,:,1],axis=3)
                 teX = du.Dimension(teX,args.dimension)#teX = np.expand_dims(teX[:,:,:,1],axis=3)
-                acc = test(multi_model, data=(teX, teY),args=args)
+                acc = test(multi_model, data=(teX, teY),args=args, label_names=label_names)
                 # csv write
                 fd_test_result.write('noisy'+str(i)+','+str(acc)+'\n')
                 fd_test_result.flush()

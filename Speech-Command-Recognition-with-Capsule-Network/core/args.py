@@ -14,7 +14,7 @@ def args():
     #Path
     parser.add_argument('--data_path', default= '/DATA/jsbae/KWS_feature_saved', type=str)
     parser.add_argument('--project_path', default='/DATA/jsbae/STT2/SCR_INTERSPEECH2018', type=str)
-    parser.add_argument('-lnp','--labels_name_path', default='/DATA/jsbae/labels_name.txt', type=str)
+    parser.add_argument('-lnp','--label_names_path', default='/DATA/jsbae/labels_name.txt', type=str)
     parser.add_argument('-olp','--open_labels_path', default='/DATA/jsbae/open_labels.txt', type=str)
     # Parameters
     parser.add_argument('-lr','--learning_rate', default=0.001, type=float)

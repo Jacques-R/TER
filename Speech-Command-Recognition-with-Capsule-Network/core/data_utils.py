@@ -121,7 +121,7 @@ def load_random_noisy_data(args, SNR=None, mixedData=True, is_training=None, ope
             for ii in noise_list:
                 #print ii.split('_')[-1], ii.split('_')[-1]=='SNR'+str(SNR)
                 if ii.split('_')[-1] == 'SNR'+str(SNR):
-                    print(ii)
+                    cprint(ii, 'cyan')
                     out.append(ii)
 
             if mixedData:
