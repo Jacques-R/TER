@@ -12,7 +12,7 @@ First you will need to clone this git repository to have acces to the code and a
 ! git clone https://gitlab.com/baptiste.pouthier/google-speech-dataset.git
 
 Then import all those library:
-
+```
 ! pip install numpy
 ! pip install termcolor
 ! pip install scipy
@@ -21,7 +21,7 @@ Then import all those library:
 ! pip install tensorflow-gpu==1.6.0
 ! pip install keras==2.1.4
 ! pip2.7 install scikits.audiolab
-
+```
 then you can start extracting the features to do so you need to go to at 
 
 TER/Speech-Command-Recognition-with-Capsule-Network/core/
